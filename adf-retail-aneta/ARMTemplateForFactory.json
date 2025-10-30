@@ -1,0 +1,484 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "adf-retail-aneta"
+		},
+		"LS_adls_stganeta_accountKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accountKey' of 'LS_adls_stganeta'"
+		},
+		"LS_sql_retailDB_password": {
+			"type": "secureString",
+			"metadata": "Secure string for 'password' of 'LS_sql_retailDB'"
+		},
+		"LS_adls_stganeta_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://stgaccaneta.dfs.core.windows.net/"
+		},
+		"LS_sql_retailDB_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "sql-retail-server-aneta.database.windows.net"
+		},
+		"LS_sql_retailDB_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "retail_db"
+		},
+		"LS_sql_retailDB_properties_typeProperties_userName": {
+			"type": "string",
+			"defaultValue": "rootadmin"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/pipeline_data_ingestion')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy_transactions",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "transaction_id",
+											"type": "String"
+										},
+										"sink": {
+											"name": "transaction_id",
+											"type": "int",
+											"precision": 10
+										}
+									},
+									{
+										"source": {
+											"name": "customer_id",
+											"type": "String"
+										},
+										"sink": {
+											"name": "customer_id",
+											"type": "int",
+											"precision": 10
+										}
+									},
+									{
+										"source": {
+											"name": "product_id",
+											"type": "String"
+										},
+										"sink": {
+											"name": "product_id",
+											"type": "int",
+											"precision": 10
+										}
+									},
+									{
+										"source": {
+											"name": "transaction_date",
+											"type": "String"
+										},
+										"sink": {
+											"name": "transaction_date",
+											"type": "datetime",
+											"scale": 3,
+											"precision": 23
+										}
+									},
+									{
+										"source": {
+											"name": "total_amount",
+											"type": "String"
+										},
+										"sink": {
+											"name": "total_amount",
+											"type": "decimal",
+											"scale": 2,
+											"precision": 10
+										}
+									}
+								],
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_adls_transactions",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_sql_transactions",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					},
+					{
+						"name": "Copy_products",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Copy_transactions",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "JsonSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "JsonReadSettings"
+								}
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"path": "$['product_id']"
+										},
+										"sink": {
+											"name": "product_id",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"path": "$['name']"
+										},
+										"sink": {
+											"name": "name",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "$['category']"
+										},
+										"sink": {
+											"name": "category",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "$['price']"
+										},
+										"sink": {
+											"name": "price",
+											"type": "Decimal"
+										}
+									}
+								]
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_adls_products",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_sql_products",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DS_adls_transactions')]",
+				"[concat(variables('factoryId'), '/datasets/DS_sql_transactions')]",
+				"[concat(variables('factoryId'), '/datasets/DS_adls_products')]",
+				"[concat(variables('factoryId'), '/datasets/DS_sql_products')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_adls_products')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_adls_stganeta",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Json",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "products.json",
+						"fileSystem": "products"
+					}
+				},
+				"schema": {
+					"type": "object",
+					"properties": {
+						"product_id": {
+							"type": "integer"
+						},
+						"name": {
+							"type": "string"
+						},
+						"category": {
+							"type": "string"
+						},
+						"price": {
+							"type": "number"
+						}
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_adls_stganeta')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_adls_transactions')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_adls_stganeta",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "transactions.csv",
+						"fileSystem": "transactions"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "transaction_id",
+						"type": "String"
+					},
+					{
+						"name": "customer_id",
+						"type": "String"
+					},
+					{
+						"name": "product_id",
+						"type": "String"
+					},
+					{
+						"name": "transaction_date",
+						"type": "String"
+					},
+					{
+						"name": "total_amount",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_adls_stganeta')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_sql_products')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_sql_retailDB",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "product_id",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "name",
+						"type": "varchar"
+					},
+					{
+						"name": "category",
+						"type": "varchar"
+					},
+					{
+						"name": "price",
+						"type": "decimal",
+						"precision": 10,
+						"scale": 2
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "products_tbl"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_sql_retailDB')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_sql_transactions')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_sql_retailDB",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "transaction_id",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "customer_id",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "product_id",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "transaction_date",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					},
+					{
+						"name": "total_amount",
+						"type": "decimal",
+						"precision": 10,
+						"scale": 2
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "transactions_tbl"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_sql_retailDB')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/LS_adls_stganeta')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('LS_adls_stganeta_properties_typeProperties_url')]",
+					"accountKey": {
+						"type": "SecureString",
+						"value": "[parameters('LS_adls_stganeta_accountKey')]"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/LS_sql_retailDB')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"server": "[parameters('LS_sql_retailDB_properties_typeProperties_server')]",
+					"database": "[parameters('LS_sql_retailDB_properties_typeProperties_database')]",
+					"encrypt": "mandatory",
+					"trustServerCertificate": false,
+					"authenticationType": "SQL",
+					"userName": "[parameters('LS_sql_retailDB_properties_typeProperties_userName')]",
+					"password": {
+						"type": "SecureString",
+						"value": "[parameters('LS_sql_retailDB_password')]"
+					}
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}
