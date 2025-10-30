@@ -1,0 +1,211 @@
+{
+	"name": "pipeline_data_ingestion",
+	"properties": {
+		"activities": [
+			{
+				"name": "Copy_transactions",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "DelimitedTextSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "DelimitedTextReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "transaction_id",
+									"type": "String"
+								},
+								"sink": {
+									"name": "transaction_id",
+									"type": "int",
+									"precision": 10
+								}
+							},
+							{
+								"source": {
+									"name": "customer_id",
+									"type": "String"
+								},
+								"sink": {
+									"name": "customer_id",
+									"type": "int",
+									"precision": 10
+								}
+							},
+							{
+								"source": {
+									"name": "product_id",
+									"type": "String"
+								},
+								"sink": {
+									"name": "product_id",
+									"type": "int",
+									"precision": 10
+								}
+							},
+							{
+								"source": {
+									"name": "transaction_date",
+									"type": "String"
+								},
+								"sink": {
+									"name": "transaction_date",
+									"type": "datetime",
+									"scale": 3,
+									"precision": 23
+								}
+							},
+							{
+								"source": {
+									"name": "total_amount",
+									"type": "String"
+								},
+								"sink": {
+									"name": "total_amount",
+									"type": "decimal",
+									"scale": 2,
+									"precision": 10
+								}
+							}
+						],
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "DS_adls_transactions",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "DS_sql_transactions",
+						"type": "DatasetReference"
+					}
+				]
+			},
+			{
+				"name": "Copy_products",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Copy_transactions",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"path": "$['product_id']"
+								},
+								"sink": {
+									"name": "product_id",
+									"type": "Int32"
+								}
+							},
+							{
+								"source": {
+									"path": "$['name']"
+								},
+								"sink": {
+									"name": "name",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['category']"
+								},
+								"sink": {
+									"name": "category",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['price']"
+								},
+								"sink": {
+									"name": "price",
+									"type": "Decimal"
+								}
+							}
+						]
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "DS_adls_products",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "DS_sql_products",
+						"type": "DatasetReference"
+					}
+				]
+			}
+		],
+		"annotations": []
+	}
+}

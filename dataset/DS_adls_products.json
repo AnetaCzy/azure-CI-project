@@ -1,0 +1,35 @@
+{
+	"name": "DS_adls_products",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_adls_stganeta",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "Json",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": "products.json",
+				"fileSystem": "products"
+			}
+		},
+		"schema": {
+			"type": "object",
+			"properties": {
+				"product_id": {
+					"type": "integer"
+				},
+				"name": {
+					"type": "string"
+				},
+				"category": {
+					"type": "string"
+				},
+				"price": {
+					"type": "number"
+				}
+			}
+		}
+	}
+}
