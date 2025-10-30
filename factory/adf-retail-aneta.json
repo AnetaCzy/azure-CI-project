@@ -1,0 +1,9 @@
+{
+	"name": "adf-retail-aneta",
+	"location": "eastus2",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "ace8d02e-e177-4f28-bf1d-90e2dbb3879c",
+		"tenantId": "734bc3b3-5f14-49f7-a817-85c51014064d"
+	}
+}
